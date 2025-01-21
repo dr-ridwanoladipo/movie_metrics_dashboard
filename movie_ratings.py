@@ -108,8 +108,12 @@ st.markdown("""
         background-color: white;
         box-shadow: 0 2px 5px rgba(0,0,0,0.05);
     }
-    /* Tab styling */
+    /* Tab styling with horizontal scrolling */
     .stTabs [data-baseweb="tab-list"] {
+        display: flex;
+        overflow-x: auto;
+        white-space: nowrap;
+        scrollbar-width: thin; /* For Firefox */
         gap: 24px;
     }
     .stTabs [data-baseweb="tab"] {
@@ -117,6 +121,21 @@ st.markdown("""
         color: #333;
         padding: 10px 20px;
         border-radius: 5px;
+        flex: none;
+        white-space: nowrap;
+        margin-right: 10px;
+    }
+    /* Custom scrollbar styling */
+    .stTabs [data-baseweb="tab-list"]::-webkit-scrollbar {
+        height: 5px;
+    }
+    .stTabs [data-baseweb="tab-list"]::-webkit-scrollbar-thumb {
+        background: #007bff;
+        border-radius: 10px;
+    }
+    .stTabs [data-baseweb="tab-list"]::-webkit-scrollbar-track {
+        background: #f0f0f0;
+        border-radius: 10px;
     }
     /* Plot styling */
     .plot-container {
@@ -196,19 +215,15 @@ fandango, all_sites, merged_df = load_data()
 st.sidebar.title("🎬 Analysis Controls")
 
 # 1. Help Button
-# Initialize session state for help toggle
 if "show_help" not in st.session_state:
     st.session_state["show_help"] = False
 
-# Function to toggle help visibility
 def toggle_help():
     st.session_state["show_help"] = not st.session_state["show_help"]
 
-# Sidebar Help Button
 if st.sidebar.button("❓ Help", on_click=toggle_help):
     pass
 
-# Display Help Content
 if st.session_state["show_help"]:
     st.markdown("""
     ### Help Documentation
@@ -218,19 +233,20 @@ if st.session_state["show_help"]:
     - **Search**: In the *Data Explorer* tab, you can search for specific movie titles.
     """)
 
-
-# 2. Enhanced Search Feature (Optional in the sidebar)
+# 2. Enhanced Search Feature
 search_query = st.sidebar.text_input(
     "🔍 Quick Movie Search",
     help="Type a partial movie title, year, or rating to filter below"
 )
 
 if search_query:
+    # Create a copy for further assignments
     filtered_movies = fandango[
         fandango['FILM'].str.contains(search_query, case=False, na=False) |
         fandango['YEAR'].astype(str).str.contains(search_query, na=False) |
         fandango['RATING'].astype(str).str.contains(search_query, na=False)
-    ]
+    ].copy()
+
     st.sidebar.write(f"Found {len(filtered_movies)} movies:")
     st.sidebar.dataframe(
         filtered_movies[['FILM', 'YEAR', 'RATING', 'VOTES']],
@@ -247,7 +263,7 @@ if len(years) > 0:
         help="Filter movies by release year"
     )
 else:
-    year_range = (0, 0)  # fallback if no data
+    year_range = (0, 0) # fallback if no data
 
 # 4. Rating Filter
 rating_range = st.sidebar.slider(
@@ -301,7 +317,7 @@ if st.sidebar.button("Generate Analysis Report"):
 ##############################################################
 #                      MAIN PAGE TITLE
 ##############################################################
-st.title("🎬 Enhanced Movie Ratings Analysis Dashboard")
+st.title("🎬 Movie Metrics Dashboard")
 st.markdown("### Investigating Online Review Bias with Interactive Analysis")
 
 ##############################################################
@@ -351,18 +367,17 @@ with col4:
 ##############################################################
 #                   FILTERED DATASET
 ##############################################################
-# Filter by selected year range
+# Safely create copy after slicing to avoid SettingWithCopyWarning
 year_min, year_max = year_range
 df_time = fandango[
     (fandango['YEAR'] >= year_min) &
     (fandango['YEAR'] <= year_max)
-]
+].copy()
 
-# Filter by rating range
 df_time = df_time[
     (df_time['RATING'] >= rating_range[0]) &
     (df_time['RATING'] <= rating_range[1])
-]
+].copy()
 
 ##############################################################
 #                     TABS ORGANIZATION
@@ -463,15 +478,15 @@ with tab2:
     with colA:
         # Scatter plot comparison
         if platform_compare == "Rotten Tomatoes":
-            comparison_data = merged_df[['FILM','RATING','RT_Normalized']]
+            comparison_data = merged_df[['FILM', 'RATING', 'RT_Normalized']].copy()
             x_col = 'RT_Normalized'
             title = "Fandango vs Rotten Tomatoes"
         elif platform_compare == "Metacritic":
-            comparison_data = merged_df[['FILM','RATING','Metacritic_Normalized']]
+            comparison_data = merged_df[['FILM', 'RATING', 'Metacritic_Normalized']].copy()
             x_col = 'Metacritic_Normalized'
             title = "Fandango vs Metacritic"
         else:
-            comparison_data = merged_df[['FILM','RATING','IMDB_Normalized']]
+            comparison_data = merged_df[['FILM', 'RATING', 'IMDB_Normalized']].copy()
             x_col = 'IMDB_Normalized'
             title = "Fandango vs IMDB"
 
@@ -494,6 +509,7 @@ with tab2:
     with colB:
         # Rating difference distribution
         diff_col = f'Diff_{platform_compare.replace(" ", "_")}'
+        # Safe to assign now that we have a copy
         comparison_data[diff_col] = comparison_data['RATING'] - comparison_data[x_col]
         fig_diff = px.histogram(
             comparison_data,
@@ -523,19 +539,20 @@ with tab3:
     st.header("Temporal Trends Analysis")
 
     # Additional time-based filtering
+    year_options = fandango['YEAR'].dropna().unique()
     year_min_sel, year_max_sel = st.select_slider(
         "Select Time Period",
-        options=sorted(fandango['YEAR'].dropna().unique()),
+        options=sorted(year_options) if len(year_options) > 0 else [0],
         value=(
-            min(fandango['YEAR'].dropna()) if not fandango.empty else 0,
-            max(fandango['YEAR'].dropna()) if not fandango.empty else 0
+            min(year_options) if len(year_options) > 0 else 0,
+            max(year_options) if len(year_options) > 0 else 0
         )
     )
 
     time_data = fandango[
         (fandango['YEAR'] >= year_min_sel) &
         (fandango['YEAR'] <= year_max_sel)
-    ]
+    ].copy()
 
     colX, colY = st.columns(2)
     with colX:
@@ -610,13 +627,16 @@ with tab4:
     ##########################################################
     with insight_tab1:
         st.subheader("Rating Anomaly Detection")
-        merged_df['rating_zscore'] = (merged_df['RATING'] - merged_df['RATING'].mean()) / merged_df['RATING'].std()
+        # Safe to create a copy if we plan to add new columns
+        merged_cpy = merged_df.copy()
+        merged_cpy['rating_zscore'] = (
+            merged_cpy['RATING'] - merged_cpy['RATING'].mean()
+        ) / merged_cpy['RATING'].std()
 
-        # Identify anomalies (Z-score threshold)
-        anomalies = merged_df[abs(merged_df['rating_zscore']) > 2]
+        anomalies = merged_cpy[abs(merged_cpy['rating_zscore']) > 2]
 
         fig_anomaly = px.scatter(
-            merged_df,
+            merged_cpy,
             x='VOTES',
             y='RATING',
             color='rating_zscore',
@@ -639,22 +659,22 @@ with tab4:
     with insight_tab2:
         st.subheader("Platform Bias Analysis")
 
-        # Calculate bias metrics
+        # Use a copy if adding columns or modifying
+        merged_copy_bias = merged_df.copy()
         bias_metrics = pd.DataFrame({
             'Platform': ['Fandango vs RT', 'Fandango vs Metacritic', 'Fandango vs IMDB'],
             'Mean Difference': [
-                (merged_df['RATING'] - merged_df['RT_Normalized']).mean(),
-                (merged_df['RATING'] - merged_df['Metacritic_Normalized']).mean(),
-                (merged_df['RATING'] - merged_df['IMDB_Normalized']).mean()
+                (merged_copy_bias['RATING'] - merged_copy_bias['RT_Normalized']).mean(),
+                (merged_copy_bias['RATING'] - merged_copy_bias['Metacritic_Normalized']).mean(),
+                (merged_copy_bias['RATING'] - merged_copy_bias['IMDB_Normalized']).mean()
             ],
             'Std Difference': [
-                (merged_df['RATING'] - merged_df['RT_Normalized']).std(),
-                (merged_df['RATING'] - merged_df['Metacritic_Normalized']).std(),
-                (merged_df['RATING'] - merged_df['IMDB_Normalized']).std()
+                (merged_copy_bias['RATING'] - merged_copy_bias['RT_Normalized']).std(),
+                (merged_copy_bias['RATING'] - merged_copy_bias['Metacritic_Normalized']).std(),
+                (merged_copy_bias['RATING'] - merged_copy_bias['IMDB_Normalized']).std()
             ]
         })
 
-        # Visualization of bias
         fig_bias = px.bar(
             bias_metrics,
             x='Platform',
@@ -686,17 +706,20 @@ with tab4:
         )
         st.plotly_chart(fig_corr, use_container_width=True)
 
-        col1, col2 = st.columns(2)
-        with col1:
+        colX, colY = st.columns(2)
+        with colX:
             st.markdown("**Distribution Statistics (Fandango Rating)**")
             stats_df = merged_df['RATING'].describe().round(3)
             st.dataframe(stats_df)
 
-        with col2:
+        with colY:
             st.markdown("**Hypothesis Testing** (two-sample t-test)")
-            # Compare Fandango vs other platforms
             def perform_ttest(platform_data):
-                t_stat, p_value = stats.ttest_ind(merged_df['RATING'], platform_data, nan_policy='omit')
+                t_stat, p_value = stats.ttest_ind(
+                    merged_df['RATING'],
+                    platform_data,
+                    nan_policy='omit'
+                )
                 return pd.Series({'t_statistic': t_stat, 'p_value': p_value})
 
             ttest_results = pd.DataFrame({
@@ -713,7 +736,6 @@ with tab4:
 with tab5:
     st.header("Interactive Data Explorer")
 
-    # Search / Filter
     colE1, colE2, colE3 = st.columns(3)
     with colE1:
         search_text = st.text_input(
@@ -732,14 +754,18 @@ with tab5:
             ['FILM','RATING','VOTES','YEAR']
         )
 
+    # Work on a copy for subsequent filtering
     explorer_df = fandango.copy()
+
     if search_text:
         explorer_df = explorer_df[
             explorer_df['FILM'].str.contains(search_text, case=False, na=False)
-        ]
+        ].copy()
+
     if min_votes > 0:
-        explorer_df = explorer_df[explorer_df['VOTES'] >= min_votes]
-    explorer_df = explorer_df.sort_values(sort_by)
+        explorer_df = explorer_df[explorer_df['VOTES'] >= min_votes].copy()
+
+    explorer_df = explorer_df.sort_values(sort_by).copy()
 
     st.dataframe(
         explorer_df.style.background_gradient(
@@ -749,7 +775,6 @@ with tab5:
         use_container_width=True
     )
 
-    # Export CSV/Excel
     if not explorer_df.empty:
         colE_left, colE_right = st.columns(2)
 
@@ -773,14 +798,16 @@ with tab5:
                     unsafe_allow_html=True
                 )
 
-    # Summary metrics
     st.markdown("### Quick Summary of Current View")
     colE4, colE5, colE6 = st.columns(3)
+
     with colE4:
         st.metric("Number of Movies", len(explorer_df))
+
     with colE5:
         avg_ = explorer_df['RATING'].mean()
         st.metric("Average Rating", f"{avg_:.2f}" if not np.isnan(avg_) else "N/A")
+
     with colE6:
         sum_votes = explorer_df['VOTES'].sum()
         st.metric("Total Votes", f"{sum_votes:,.0f}" if not np.isnan(sum_votes) else "N/A")
@@ -825,11 +852,3 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.success("End of Analysis. Thank you for exploring the data!")
-
-
-
-
-
-
-
-
