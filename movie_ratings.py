@@ -196,7 +196,20 @@ fandango, all_sites, merged_df = load_data()
 st.sidebar.title("🎬 Analysis Controls")
 
 # 1. Help Button
-if st.sidebar.button("❓ Help", help="Click for help information."):
+# Initialize session state for help toggle
+if "show_help" not in st.session_state:
+    st.session_state["show_help"] = False
+
+# Function to toggle help visibility
+def toggle_help():
+    st.session_state["show_help"] = not st.session_state["show_help"]
+
+# Sidebar Help Button
+if st.sidebar.button("❓ Help", on_click=toggle_help):
+    pass
+
+# Display Help Content
+if st.session_state["show_help"]:
     st.markdown("""
     ### Help Documentation
     - **Navigation**: Use the tabs at the top of the page to explore different analyses.
@@ -204,6 +217,7 @@ if st.sidebar.button("❓ Help", help="Click for help information."):
     - **Exports**: Use the buttons in the *Data Explorer* tab or the *Analysis Report* button to download Excel/CSV files.
     - **Search**: In the *Data Explorer* tab, you can search for specific movie titles.
     """)
+
 
 # 2. Enhanced Search Feature (Optional in the sidebar)
 search_query = st.sidebar.text_input(
