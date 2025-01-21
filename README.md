@@ -109,10 +109,10 @@ streamlit run movie_ratings.py
 ```
 movie-ratings-analysis/
 ├── movie_ratings.py        # Main application
-├── requirements.txt         # Dependencies
-├── fandango_scrape.csv                    # Data files
+├── requirements.txt        # Dependencies
+├── fandango_scrape.csv     # Data files
 │── all_sites_scores.csv
-├── movie_ratings.ipynb             # notebook
+├── movie_ratings.ipynb     # notebook
 └── README.md               # Documentation
 ```
 
